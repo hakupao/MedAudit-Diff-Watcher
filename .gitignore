@@ -1,0 +1,42 @@
+__pycache__/
+*.py[cod]
+*.sqlite
+*.db
+*.db-wal
+*.db-shm
+.tmp_smoke/
+data/
+reports/
+
+# Local config / secrets
+config.yaml
+.env
+.env.*
+
+# Python packaging / build artifacts
+*.egg-info/
+build/
+dist/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / lint / type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# IDE / editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS noise
+.DS_Store
+Thumbs.db

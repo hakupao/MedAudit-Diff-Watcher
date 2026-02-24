@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medaudit-diff-watcher"
+version = "0.1.0"
+description = "Watch folders, compare CSVs, persist diffs, generate reports, and summarize with AI."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+watch = ["watchdog>=4.0"]
+fuzzy = ["rapidfuzz>=3.9"]
+all = [
+  "watchdog>=4.0",
+  "rapidfuzz>=3.9",
+]
+
+[project.scripts]
+medaudit-diff-watcher = "medaudit_diff_watcher.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["medaudit_diff_watcher*"]
+
