@@ -1,0 +1,62 @@
+watch:
+  # 单目录监控（默认示例）
+  root_dir: "C:\\Path\\To\\Study\\04_SDTM"
+
+  # 多目录监控示例（启用后会优先使用 root_dirs，并自动按 watch_name 隔离 data/reports）
+  # root_dirs:
+  #   - "C:\\Path\\To\\StudyA\\04_SDTM"
+  #   - "D:\\Path\\To\\StudyB\\04_SDTM"
+  #   - "E:\\Path\\To\\StudyC\\04_SDTM"
+
+  scan_interval_sec: 30
+  stable_wait_sec: 5
+  min_subfolders_to_compare: 2
+
+pairing:
+  strategy: latest_two
+
+csv:
+  # 可用固定文件名（如 "DM.csv"）或通配符（如 "*.csv"）
+  fixed_filename: "*.csv"
+  encoding: auto
+  delimiter: auto
+  normalize_trim_whitespace: true
+  normalize_case_headers: false
+  null_equivalents: ["", "NULL", "null", "N/A"]
+
+diff:
+  enable_fuzzy_match: true
+  fuzzy_threshold: 90
+  max_fuzzy_comparisons: 50000
+
+compare_tool:
+  enabled: true
+  # auto | bcompare | winmerge
+  tool: auto
+  executable_path: "C:\\Program Files\\Beyond Compare 5\\BCompare.exe"
+  # executable_path: "C:\\Program Files\\WinMerge\\WinMergeU.exe"
+  # file | folder
+  compare_mode: folder
+
+db:
+  sqlite_path: "data/medaudit_diff.db"
+
+report:
+  output_dir: "reports"
+
+ai:
+  # 建议先关闭 AI 跑通主流程，再开启
+  enabled: false
+  base_url: "https://api.openai.com/v1"
+  api_key: ""
+  model: "gpt-5-nano"
+  timeout_sec: 30
+  max_retries: 2
+  send_raw_rows: false
+
+logging:
+  level: INFO
+
+# 注意：
+# 1) 当前项目不会自动从环境变量展开 YAML 字符串（例如 ${OPENAI_API_KEY} 不会自动解析）
+# 2) 请复制本文件为 config.yaml 后填写你自己的本地路径与密钥，不要提交含敏感信息的 config.yaml
