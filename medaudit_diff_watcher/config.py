@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -215,6 +215,24 @@ def load_config(path: str | Path) -> AppConfig:
     config = _build_config(raw)
     config.ensure_runtime_dirs()
     return config
+
+
+def config_to_dict(config: AppConfig) -> dict[str, Any]:
+    # `asdict()` preserves dataclass field order, which keeps YAML stable/readable.
+    return asdict(config)
+
+
+def save_config(path: str | Path, config: AppConfig) -> None:
+    try:
+        import yaml  # type: ignore
+    except Exception as exc:  # pragma: no cover - dependency issue path
+        raise RuntimeError("PyYAML is required to save config.yaml. Install with `pip install PyYAML`.") from exc
+
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = config_to_dict(config)
+    with out_path.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(raw, fh, sort_keys=False, allow_unicode=True)
 
 
 def expand_watch_scopes(config: AppConfig) -> list[WatchScope]:

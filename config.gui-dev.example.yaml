@@ -1,0 +1,49 @@
+watch:
+  # GUI 开发/测试请使用独立目录，避免与 CLI 生产监视目录重叠
+  root_dir: "C:\\Path\\To\\GUI-TEST\\04_SDTM"
+  # root_dirs:
+  #   - "C:\\Path\\To\\GUI-TEST-A\\04_SDTM"
+  #   - "C:\\Path\\To\\GUI-TEST-B\\04_SDTM"
+  scan_interval_sec: 30
+  stable_wait_sec: 5
+  min_subfolders_to_compare: 2
+
+pairing:
+  strategy: latest_two
+
+csv:
+  fixed_filename: "*.csv"
+  encoding: auto
+  delimiter: auto
+  normalize_trim_whitespace: true
+  normalize_case_headers: false
+  null_equivalents: ["", "NULL", "null", "N/A"]
+
+diff:
+  enable_fuzzy_match: true
+  fuzzy_threshold: 90
+  max_fuzzy_comparisons: 50000
+
+compare_tool:
+  enabled: true
+  tool: auto
+  executable_path: "C:\\Program Files\\Beyond Compare 5\\BCompare.exe"
+  compare_mode: folder
+
+db:
+  sqlite_path: "data_gui_dev/medaudit_diff_gui.db"
+
+report:
+  output_dir: "reports_gui_dev"
+
+ai:
+  enabled: false
+  base_url: "https://api.openai.com/v1"
+  api_key: ""
+  model: "gpt-5-nano"
+  timeout_sec: 30
+  max_retries: 2
+  send_raw_rows: false
+
+logging:
+  level: INFO

@@ -6,6 +6,7 @@
 
 - `CONFIGURATION.md`：`config.yaml` 配置项说明与示例
 - `CLI_USAGE.md`：命令行用法、参数、示例命令
+- `GUI_DESKTOP_PACKAGING.md`：GUI/托盘首版使用方式与打包/安装说明
 - `TROUBLESHOOTING.md`：常见问题排查
 
 ## 维护者（理解代码与数据）

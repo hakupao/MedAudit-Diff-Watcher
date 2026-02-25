@@ -28,6 +28,15 @@ MedAudit-Diff-Watcher is a local Python CLI tool for CSV audit diffs across vers
 python -m pip install -e .[all]
 ```
 
+GUI / 托盘首版（可选，零影响并行改造路径）：
+
+```powershell
+python -m pip install -e .[gui]
+medaudit-diff-watcher-gui --config config.gui-dev.yaml
+```
+
+说明：GUI 默认使用独立 `config.gui-dev.yaml`，建议配置单独的监视目录 / DB / 报告目录，避免和当前 CLI 监视同一目录。
+
 ### 2) 创建本地配置（使用脱敏模板）
 
 ```powershell
@@ -130,6 +139,7 @@ data/<watch_name>/medaudit_diff.db
 - `doc/CHANGELOG_GUIDE.md`：团队改动记录规范（CHANGELOG/变更说明写法）
 - `doc/TROUBLESHOOTING.md`：常见问题排查
 - `doc/AI_WORK_RULES.md`：AI/Codex 协作规则与 Prompt 模板
+- `doc/GUI_DESKTOP_PACKAGING.md`：GUI/托盘首版与 PyInstaller/Inno Setup 打包说明
 
 ## 安全提示
 

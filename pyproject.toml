@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 watch = ["watchdog>=4.0"]
 fuzzy = ["rapidfuzz>=3.9"]
+gui = ["PySide6>=6.6"]
 all = [
   "watchdog>=4.0",
   "rapidfuzz>=3.9",
@@ -22,7 +23,7 @@ all = [
 
 [project.scripts]
 medaudit-diff-watcher = "medaudit_diff_watcher.cli:main"
+medaudit-diff-watcher-gui = "medaudit_diff_watcher.gui_launcher:main"
 
 [tool.setuptools.packages.find]
 include = ["medaudit_diff_watcher*"]
-

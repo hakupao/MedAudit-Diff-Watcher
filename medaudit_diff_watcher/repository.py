@@ -531,3 +531,134 @@ class DiffRepository:
                 "ai_summary": dict(ai_summary) if ai_summary else None,
                 "reports": [dict(r) for r in reports],
             }
+
+    def list_batches(self, *, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        with self._managed_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    b.*,
+                    (
+                        SELECT COUNT(*)
+                        FROM compare_jobs j
+                        WHERE j.batch_id = b.id
+                    ) AS job_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM compare_jobs j
+                        WHERE j.batch_id = b.id
+                          AND j.status IN ('done', 'reported_done_ai_failed')
+                    ) AS completed_job_count,
+                    (
+                        SELECT br.file_path
+                        FROM batch_reports br
+                        WHERE br.batch_id = b.id AND br.report_type = 'batch_index_html'
+                        ORDER BY br.id DESC
+                        LIMIT 1
+                    ) AS batch_index_html_path,
+                    (
+                        SELECT br.file_path
+                        FROM batch_reports br
+                        WHERE br.batch_id = b.id AND br.report_type = 'batch_summary_csv'
+                        ORDER BY br.id DESC
+                        LIMIT 1
+                    ) AS batch_summary_csv_path,
+                    (
+                        SELECT br.file_path
+                        FROM batch_reports br
+                        WHERE br.batch_id = b.id AND br.report_type = 'batch_ai_summary_md'
+                        ORDER BY br.id DESC
+                        LIMIT 1
+                    ) AS batch_ai_summary_md_path
+                FROM compare_batches b
+                ORDER BY b.id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (max(1, int(limit)), max(0, int(offset))),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_jobs(
+        self,
+        *,
+        limit: int = 200,
+        offset: int = 0,
+        batch_id: int | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        where_parts: list[str] = []
+        params: list[Any] = []
+        if batch_id is not None:
+            where_parts.append("j.batch_id = ?")
+            params.append(int(batch_id))
+        if status:
+            where_parts.append("j.status = ?")
+            params.append(str(status))
+        where_sql = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+        params.extend([max(1, int(limit)), max(0, int(offset))])
+
+        with self._managed_conn() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    j.*,
+                    s.total_rows_left,
+                    s.total_rows_right,
+                    s.exact_match_rows,
+                    s.added_rows,
+                    s.deleted_rows,
+                    s.suspected_modified_rows,
+                    (
+                        SELECT r.file_path
+                        FROM reports r
+                        WHERE r.job_id = j.id AND r.report_type = 'detailed_html'
+                        ORDER BY r.id DESC
+                        LIMIT 1
+                    ) AS detailed_report_path,
+                    (
+                        SELECT r.file_path
+                        FROM reports r
+                        WHERE r.job_id = j.id AND r.report_type = 'detailed_csv'
+                        ORDER BY r.id DESC
+                        LIMIT 1
+                    ) AS row_diffs_csv_path,
+                    (
+                        SELECT r.file_path
+                        FROM reports r
+                        WHERE r.job_id = j.id AND r.report_type = 'ai_summary_md'
+                        ORDER BY r.id DESC
+                        LIMIT 1
+                    ) AS ai_summary_md_path
+                FROM compare_jobs j
+                LEFT JOIN diff_summaries s ON s.job_id = j.id
+                {where_sql}
+                ORDER BY j.id DESC
+                LIMIT ? OFFSET ?
+                """,
+                tuple(params),
+            ).fetchall()
+
+        jobs: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            left_csv_path = str(item.get("left_csv_path") or "")
+            item["file_name"] = Path(left_csv_path).name if left_csv_path else ""
+            item["file_stem"] = Path(left_csv_path).stem if left_csv_path else ""
+            jobs.append(item)
+        return jobs
+
+    def list_reports_for_job(self, job_id: int) -> list[dict[str, Any]]:
+        with self._managed_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM reports WHERE job_id = ? ORDER BY id",
+                (job_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_batch_reports(self, batch_id: int) -> list[dict[str, Any]]:
+        with self._managed_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM batch_reports WHERE batch_id = ? ORDER BY id",
+                (batch_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]

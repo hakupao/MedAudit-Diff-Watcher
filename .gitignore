@@ -10,8 +10,13 @@ reports/
 
 # Local config / secrets
 config.yaml
+config.gui-dev.yaml
 .env
 .env.*
+
+# GUI dev isolated runtime data
+data_gui_dev/
+reports_gui_dev/
 
 # Python packaging / build artifacts
 *.egg-info/
