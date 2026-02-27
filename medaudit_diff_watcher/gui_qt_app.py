@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtGui import QAction, QCloseEvent, QFont, QFontDatabase
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -38,6 +38,7 @@ from medaudit_diff_watcher.gui_support import (
     ensure_gui_dev_config_file,
     open_path_external,
 )
+from medaudit_diff_watcher.gui_yaml_highlighter import YamlSyntaxHighlighter
 from medaudit_diff_watcher.repository import DiffRepository
 
 
@@ -62,8 +63,10 @@ class MainWindow(QMainWindow):
         self._signals.one_shot_failed.connect(self._on_one_shot_failed)
         self._batch_rows: list[dict[str, Any]] = []
         self._job_rows: list[dict[str, Any]] = []
+        self._yaml_highlighter: YamlSyntaxHighlighter | None = None
 
         self._build_ui()
+        self._apply_ui_scaling()
         self._setup_tray()
         self._load_config_text_from_disk()
         self._refresh_status()
@@ -85,6 +88,7 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(8, 8, 8, 8)
 
         self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
         self.control_tab = self._build_control_tab()
         self.config_form_tab = self._build_config_form_tab()
         self.config_yaml_tab = self._build_config_tab()
@@ -104,6 +108,125 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self.status_db, 1)
         status.addPermanentWidget(self.status_cfg, 2)
         self.setStatusBar(status)
+
+    def _apply_ui_scaling(self) -> None:
+        base_font = self.font()
+        point_size = base_font.pointSizeF()
+        if point_size <= 0:
+            point_size = 10.0
+        base_font.setPointSizeF(point_size + 1.0)
+        self.setFont(base_font)
+
+        self.setStyleSheet(
+            """
+            QWidget {
+                color: #1f2937;
+            }
+            QTabWidget::pane {
+                border: 1px solid #cfd7e3;
+                border-radius: 10px;
+                background: #f8fafc;
+                top: -1px;
+            }
+            QPushButton {
+                background: #f1f5f9;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                min-height: 34px;
+                padding: 5px 12px;
+            }
+            QPushButton:hover {
+                background: #e2e8f0;
+            }
+            QPushButton:pressed {
+                background: #d7e0ea;
+            }
+            QPushButton:disabled {
+                color: #9ca3af;
+            }
+            QLineEdit, QComboBox, QSpinBox {
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                min-height: 34px;
+                padding: 3px 8px;
+            }
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus, QTableWidget:focus {
+                border: 1px solid #5b8def;
+            }
+            QPlainTextEdit, QTableWidget {
+                background: #ffffff;
+                border: 1px solid #cfd7e3;
+                border-radius: 8px;
+            }
+            QPlainTextEdit#yamlEditor {
+                background: #f8fafc;
+                selection-background-color: #bfdbfe;
+            }
+            QCheckBox {
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border: 1px solid #9aa8bd;
+                border-radius: 4px;
+                background: #ffffff;
+            }
+            QCheckBox::indicator:checked {
+                background: #2563eb;
+                border: 1px solid #2563eb;
+            }
+            QTabBar::tab {
+                background: #e9eef5;
+                border: 1px solid #cfd7e3;
+                border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                min-height: 34px;
+                padding: 6px 16px;
+                margin-right: 4px;
+                color: #334155;
+            }
+            QTabBar::tab:selected {
+                background: #f8fafc;
+                color: #0f172a;
+            }
+            QTabBar::tab:!selected {
+                margin-top: 4px;
+            }
+            QTabBar::tab:hover:!selected {
+                background: #dde6f1;
+            }
+            QHeaderView::section {
+                background: #eef2f7;
+                border: 1px solid #d6dde8;
+                min-height: 32px;
+                padding: 4px 8px;
+            }
+            QGroupBox {
+                border: 1px solid #d4dbe6;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+                color: #334155;
+                font-weight: 600;
+            }
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            QStatusBar {
+                background: #eef2f7;
+                border-top: 1px solid #cfd7e3;
+            }
+            """
+        )
 
     def _build_control_tab(self) -> QWidget:
         tab = QWidget()
@@ -207,9 +330,33 @@ class MainWindow(QMainWindow):
         layout.addWidget(info)
 
         self.yaml_editor = QPlainTextEdit()
-        self.yaml_editor.setTabStopDistance(20)
+        self.yaml_editor.setObjectName("yamlEditor")
+        self.yaml_editor.setFont(self._yaml_editor_font())
+        self.yaml_editor.setTabStopDistance(float(self.yaml_editor.fontMetrics().horizontalAdvance(" ") * 4))
+        self._yaml_highlighter = YamlSyntaxHighlighter(self.yaml_editor.document())
         layout.addWidget(self.yaml_editor, 1)
         return tab
+
+    def _yaml_editor_font(self) -> QFont:
+        preferred_families = [
+            "Cascadia Code",
+            "JetBrains Mono",
+            "Fira Code",
+            "Source Code Pro",
+            "IBM Plex Mono",
+            "Hack",
+            "Consolas",
+        ]
+        db = QFontDatabase()
+        available = {family.lower(): family for family in db.families()}
+        selected_family = next((available[name.lower()] for name in preferred_families if name.lower() in available), None)
+        font = QFont(selected_family) if selected_family else QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+        size = font.pointSizeF()
+        if size <= 0:
+            size = 11.0
+        font.setPointSizeF(max(12.0, size))
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        return font
 
     def _build_results_tab(self) -> QWidget:
         tab = QWidget()

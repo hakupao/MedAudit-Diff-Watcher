@@ -79,7 +79,7 @@ class ConfigFormWidget(QWidget):
 
         self.watch_root_dirs_edit = QPlainTextEdit()
         self.watch_root_dirs_edit.setPlaceholderText("One watch root per line (optional, enables multi-watch)")
-        self.watch_root_dirs_edit.setFixedHeight(90)
+        self.watch_root_dirs_edit.setFixedHeight(110)
         root_dirs_btns = QHBoxLayout()
         btn_add_root_dir = QPushButton("Add Folder")
         btn_add_root_dir.clicked.connect(self._append_watch_root_dir_from_dialog)
@@ -135,7 +135,7 @@ class ConfigFormWidget(QWidget):
 
         self.csv_null_equiv_edit = QPlainTextEdit()
         self.csv_null_equiv_edit.setPlaceholderText("One null-equivalent value per line")
-        self.csv_null_equiv_edit.setFixedHeight(70)
+        self.csv_null_equiv_edit.setFixedHeight(86)
 
         form.addRow("fixed_filename", self.csv_fixed_filename_edit)
         form.addRow("encoding", self.csv_encoding_combo)
@@ -387,4 +387,3 @@ class ConfigFormWidget(QWidget):
         widget = QWidget()
         widget.setLayout(layout)
         return widget
-
