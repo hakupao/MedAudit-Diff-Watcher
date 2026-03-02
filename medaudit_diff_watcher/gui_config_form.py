@@ -33,6 +33,12 @@ from medaudit_diff_watcher.config import (
     WatchConfig,
 )
 
+_PRESET_WATCH_ROOT_DIRS = [
+    r"C:\Local\iTMS\SDTM_ENSEMBLE\studySpecific\ENSEMBLE\04_SDTM",
+    r"C:\Local\iTMS\SDTM_ENSEMBLE\studySpecific\ENSEMBLE\03_Format",
+    r"C:\Local\iTMS\SDTM_ENSEMBLE\studySpecific\ENSEMBLE\02_Cleaning",
+]
+
 
 class _ScrollSafeSpinBox(QSpinBox):
     def wheelEvent(self, event) -> None:
@@ -87,13 +93,37 @@ class ConfigFormWidget(QWidget):
         root_dir_row.addWidget(btn_browse_root)
         form.addRow("root_dir", self._wrap(root_dir_row))
 
+        self.watch_preset_root_checks: list[QCheckBox] = []
+        self.watch_preset_root_edits: list[QLineEdit] = []
+        preset_panel = QVBoxLayout()
+        preset_panel.setContentsMargins(0, 0, 0, 0)
+        preset_panel.setSpacing(6)
+        for idx, preset in enumerate(_PRESET_WATCH_ROOT_DIRS):
+            preset_row = QHBoxLayout()
+            preset_row.setContentsMargins(0, 0, 0, 0)
+            chk = QCheckBox()
+            chk.setToolTip("Checked means this preset path is enabled")
+            edit = QLineEdit(preset)
+            btn_browse_preset = QPushButton("Browse…")
+            btn_browse_preset.clicked.connect(lambda _checked=False, i=idx: self._browse_watch_preset_root_dir(i))
+            preset_row.addWidget(chk)
+            preset_row.addWidget(edit, 1)
+            preset_row.addWidget(btn_browse_preset)
+            preset_panel.addLayout(preset_row)
+            self.watch_preset_root_checks.append(chk)
+            self.watch_preset_root_edits.append(edit)
+        preset_hint = QLabel("Checked preset paths will be written into watch.root_dirs.")
+        preset_hint.setWordWrap(True)
+        preset_panel.addWidget(preset_hint)
+        form.addRow("root_dirs (preset)", self._wrap(preset_panel))
+
         self.watch_root_dirs_edit = QPlainTextEdit()
-        self.watch_root_dirs_edit.setPlaceholderText("One watch root per line (optional, enables multi-watch)")
-        self.watch_root_dirs_edit.setFixedHeight(110)
+        self.watch_root_dirs_edit.setPlaceholderText("Additional watch roots, one per line (optional)")
+        self.watch_root_dirs_edit.setFixedHeight(86)
         root_dirs_btns = QHBoxLayout()
         btn_add_root_dir = QPushButton("Add Folder")
         btn_add_root_dir.clicked.connect(self._append_watch_root_dir_from_dialog)
-        btn_clear_root_dirs = QPushButton("Clear")
+        btn_clear_root_dirs = QPushButton("Clear Extra")
         btn_clear_root_dirs.clicked.connect(self.watch_root_dirs_edit.clear)
         root_dirs_btns.addWidget(btn_add_root_dir)
         root_dirs_btns.addWidget(btn_clear_root_dirs)
@@ -102,7 +132,7 @@ class ConfigFormWidget(QWidget):
         root_dirs_panel.setContentsMargins(0, 0, 0, 0)
         root_dirs_panel.addWidget(self.watch_root_dirs_edit)
         root_dirs_panel.addLayout(root_dirs_btns)
-        form.addRow("root_dirs", self._wrap(root_dirs_panel))
+        form.addRow("root_dirs (extra)", self._wrap(root_dirs_panel))
 
         self.watch_scan_interval_spin = _ScrollSafeSpinBox()
         self.watch_scan_interval_spin.setRange(1, 3600)
@@ -119,7 +149,7 @@ class ConfigFormWidget(QWidget):
         self.pairing_strategy_combo.addItems(["latest_two"])
         form.addRow("pairing.strategy", self.pairing_strategy_combo)
 
-        hint = QLabel("If `root_dirs` is not empty, it takes precedence over `root_dir`.")
+        hint = QLabel("If `root_dirs` (preset/extra) is not empty, it takes precedence over `root_dir`.")
         hint.setWordWrap(True)
         form.addRow("", hint)
 
@@ -254,7 +284,25 @@ class ConfigFormWidget(QWidget):
 
     def set_config(self, cfg: AppConfig) -> None:
         self.watch_root_dir_edit.setText(cfg.watch.root_dir)
-        self.watch_root_dirs_edit.setPlainText("\n".join(cfg.watch.root_dirs))
+        configured_root_dirs = [str(x).strip() for x in cfg.watch.root_dirs if str(x).strip()]
+        preset_key_to_index: dict[str, int] = {}
+        for idx, edit in enumerate(self.watch_preset_root_edits):
+            key = self._path_key(edit.text())
+            if key:
+                preset_key_to_index[key] = idx
+
+        enabled_preset_indices: set[int] = set()
+        extra_root_dirs: list[str] = []
+        for root_dir in configured_root_dirs:
+            idx = preset_key_to_index.get(self._path_key(root_dir))
+            if idx is None:
+                extra_root_dirs.append(root_dir)
+            else:
+                enabled_preset_indices.add(idx)
+
+        for idx, chk in enumerate(self.watch_preset_root_checks):
+            chk.setChecked(idx in enabled_preset_indices)
+        self.watch_root_dirs_edit.setPlainText("\n".join(extra_root_dirs))
         self.watch_scan_interval_spin.setValue(int(cfg.watch.scan_interval_sec))
         self.watch_stable_wait_spin.setValue(int(cfg.watch.stable_wait_sec))
         self.watch_min_subfolders_spin.setValue(int(cfg.watch.min_subfolders_to_compare))
@@ -289,7 +337,13 @@ class ConfigFormWidget(QWidget):
         self.ai_send_raw_rows_check.setChecked(bool(cfg.ai.send_raw_rows))
 
     def to_config(self) -> AppConfig:
-        root_dirs = [line.strip() for line in self.watch_root_dirs_edit.toPlainText().splitlines() if line.strip()]
+        preset_root_dirs = [
+            edit.text().strip()
+            for chk, edit in zip(self.watch_preset_root_checks, self.watch_preset_root_edits)
+            if chk.isChecked() and edit.text().strip()
+        ]
+        extra_root_dirs = [line.strip() for line in self.watch_root_dirs_edit.toPlainText().splitlines() if line.strip()]
+        root_dirs = self._dedupe_paths([*preset_root_dirs, *extra_root_dirs])
         null_equivs = [line.rstrip("\r") for line in self.csv_null_equiv_edit.toPlainText().splitlines()]
         if not null_equivs:
             null_equivs = ["", "NULL", "null", "N/A"]
@@ -350,9 +404,21 @@ class ConfigFormWidget(QWidget):
         if not path:
             return
         lines = [line.strip() for line in self.watch_root_dirs_edit.toPlainText().splitlines() if line.strip()]
-        if path not in lines:
-            lines.append(path)
-            self.watch_root_dirs_edit.setPlainText("\n".join(lines))
+        existing = [*lines, *(edit.text().strip() for edit in self.watch_preset_root_edits if edit.text().strip())]
+        existing_keys = {self._path_key(x) for x in existing if x}
+        if self._path_key(path) in existing_keys:
+            return
+        lines.append(path)
+        self.watch_root_dirs_edit.setPlainText("\n".join(lines))
+
+    def _browse_watch_preset_root_dir(self, index: int) -> None:
+        if index < 0 or index >= len(self.watch_preset_root_edits):
+            return
+        current = self.watch_preset_root_edits[index].text().strip() or self.watch_root_dir_edit.text().strip() or str(Path.cwd())
+        path = QFileDialog.getExistingDirectory(self, f"Select preset watch.root_dirs[{index + 1}]", current)
+        if path:
+            self.watch_preset_root_edits[index].setText(path)
+            self.watch_preset_root_checks[index].setChecked(True)
 
     def _browse_compare_executable(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -392,6 +458,26 @@ class ConfigFormWidget(QWidget):
             combo.setCurrentIndex(idx)
         else:
             combo.setCurrentText(value)
+
+    def _path_key(self, value: str) -> str:
+        text = value.strip().replace("/", "\\")
+        while text.endswith("\\"):
+            text = text[:-1]
+        return text.lower()
+
+    def _dedupe_paths(self, values: list[str]) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for value in values:
+            path = value.strip()
+            if not path:
+                continue
+            key = self._path_key(path)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(path)
+        return out
 
     def _wrap(self, layout) -> QWidget:
         widget = QWidget()
