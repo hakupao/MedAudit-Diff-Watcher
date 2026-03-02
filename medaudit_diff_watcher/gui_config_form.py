@@ -34,6 +34,16 @@ from medaudit_diff_watcher.config import (
 )
 
 
+class _ScrollSafeSpinBox(QSpinBox):
+    def wheelEvent(self, event) -> None:
+        event.ignore()
+
+
+class _ScrollSafeComboBox(QComboBox):
+    def wheelEvent(self, event) -> None:
+        event.ignore()
+
+
 class ConfigFormWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -94,17 +104,17 @@ class ConfigFormWidget(QWidget):
         root_dirs_panel.addLayout(root_dirs_btns)
         form.addRow("root_dirs", self._wrap(root_dirs_panel))
 
-        self.watch_scan_interval_spin = QSpinBox()
+        self.watch_scan_interval_spin = _ScrollSafeSpinBox()
         self.watch_scan_interval_spin.setRange(1, 3600)
-        self.watch_stable_wait_spin = QSpinBox()
+        self.watch_stable_wait_spin = _ScrollSafeSpinBox()
         self.watch_stable_wait_spin.setRange(0, 300)
-        self.watch_min_subfolders_spin = QSpinBox()
+        self.watch_min_subfolders_spin = _ScrollSafeSpinBox()
         self.watch_min_subfolders_spin.setRange(2, 1000)
         form.addRow("scan_interval_sec", self.watch_scan_interval_spin)
         form.addRow("stable_wait_sec", self.watch_stable_wait_spin)
         form.addRow("min_subfolders_to_compare", self.watch_min_subfolders_spin)
 
-        self.pairing_strategy_combo = QComboBox()
+        self.pairing_strategy_combo = _ScrollSafeComboBox()
         self.pairing_strategy_combo.setEditable(True)
         self.pairing_strategy_combo.addItems(["latest_two"])
         form.addRow("pairing.strategy", self.pairing_strategy_combo)
@@ -122,11 +132,11 @@ class ConfigFormWidget(QWidget):
         self.csv_fixed_filename_edit = QLineEdit()
         self.csv_fixed_filename_edit.setPlaceholderText("Example: *.csv or DM.csv")
 
-        self.csv_encoding_combo = QComboBox()
+        self.csv_encoding_combo = _ScrollSafeComboBox()
         self.csv_encoding_combo.setEditable(True)
         self.csv_encoding_combo.addItems(["auto", "utf-8", "utf-8-sig", "cp932", "shift_jis"])
 
-        self.csv_delimiter_combo = QComboBox()
+        self.csv_delimiter_combo = _ScrollSafeComboBox()
         self.csv_delimiter_combo.setEditable(True)
         self.csv_delimiter_combo.addItems(["auto", ",", "\t", "|", ";"])
 
@@ -151,9 +161,9 @@ class ConfigFormWidget(QWidget):
         form = QFormLayout(box)
 
         self.diff_enable_fuzzy_check = QCheckBox("enable_fuzzy_match")
-        self.diff_threshold_spin = QSpinBox()
+        self.diff_threshold_spin = _ScrollSafeSpinBox()
         self.diff_threshold_spin.setRange(0, 100)
-        self.diff_max_comp_spin = QSpinBox()
+        self.diff_max_comp_spin = _ScrollSafeSpinBox()
         self.diff_max_comp_spin.setRange(0, 10_000_000)
 
         form.addRow("", self.diff_enable_fuzzy_check)
@@ -167,9 +177,9 @@ class ConfigFormWidget(QWidget):
         form = QFormLayout(box)
 
         self.compare_enabled_check = QCheckBox("enabled")
-        self.compare_tool_combo = QComboBox()
+        self.compare_tool_combo = _ScrollSafeComboBox()
         self.compare_tool_combo.addItems(["auto", "bcompare", "winmerge"])
-        self.compare_mode_combo = QComboBox()
+        self.compare_mode_combo = _ScrollSafeComboBox()
         self.compare_mode_combo.addItems(["file", "folder"])
         self.compare_exec_path_edit = QLineEdit()
         self.compare_exec_path_edit.setPlaceholderText(r"C:\Program Files\Beyond Compare 5\BCompare.exe")
@@ -204,7 +214,7 @@ class ConfigFormWidget(QWidget):
         report_row.addWidget(self.report_output_dir_edit, 1)
         report_row.addWidget(btn_browse_report)
 
-        self.logging_level_combo = QComboBox()
+        self.logging_level_combo = _ScrollSafeComboBox()
         self.logging_level_combo.setEditable(True)
         self.logging_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
 
@@ -222,9 +232,9 @@ class ConfigFormWidget(QWidget):
         self.ai_base_url_edit = QLineEdit()
         self.ai_api_key_edit = QLineEdit()
         self.ai_model_edit = QLineEdit()
-        self.ai_timeout_spin = QSpinBox()
+        self.ai_timeout_spin = _ScrollSafeSpinBox()
         self.ai_timeout_spin.setRange(1, 600)
-        self.ai_retries_spin = QSpinBox()
+        self.ai_retries_spin = _ScrollSafeSpinBox()
         self.ai_retries_spin.setRange(0, 20)
         self.ai_send_raw_rows_check = QCheckBox("send_raw_rows")
 
