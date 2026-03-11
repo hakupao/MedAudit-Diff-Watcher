@@ -47,6 +47,7 @@ Copy-Item config.example.yaml config.yaml
 
 - `watch.root_dir` 或 `watch.root_dirs`
 - `csv.fixed_filename`（固定文件名或通配符，如 `DM.csv` / `*.csv`）
+- `csv.exclude_columns_regex`（字段除外规则；默认已忽略 `XXSEQ` 这类字段）
 - `compare_tool.executable_path`
 
 建议先保持 `ai.enabled: false` 跑通主流程，再配置 AI。
@@ -99,6 +100,11 @@ python -m medaudit_diff_watcher --config config.yaml compare --left "C:\Study\V1
 - `compare --left <dir> --right <dir>`：手动比较两个目录
 - `rebuild-report --job-id <id>`：从数据库重建报告
 
+补充：
+
+- 当 `csv.fixed_filename` 使用通配符（如 `*.csv`）时，程序现在会比较左右目录匹配到的文件并集，不再只比较交集
+- 若某个 CSV 仅存在于一侧，也会生成完整报告；缺失侧按“空文件”处理，结果会体现为整文件新增或整文件删除
+
 完整参数和示例见 `doc/CLI_USAGE.md`。
 
 ## 报告与存储（概要）
@@ -128,6 +134,7 @@ data/<watch_name>/medaudit_diff.db
 
 ## 文档导航
 
+- `CHANGELOG.md`：版本变更记录
 - `doc/README.md`：文档导航
 - `doc/PROJECT_OVERVIEW.md`：项目遍历结果与模块地图
 - `doc/ARCHITECTURE.md`：架构与数据流

@@ -56,9 +56,11 @@ MedAudit-Diff-Watcher/
 - `medaudit_diff_watcher/planner.py`
   - 列出子目录、选择最新两个目录（`latest_two`）
   - 根据 `csv.fixed_filename` 构建单文件或通配符批量比较计划
+  - 通配符场景按匹配文件并集生成计划，支持单边缺失文件
 
 - `medaudit_diff_watcher/csv_diff.py`
   - CSV 读取、规范化、差异计算
+  - 支持字段排除规则与单边缺失文件按空文件比较
   - 生成 `CsvDiffResult`
 
 - `medaudit_diff_watcher/models.py`
@@ -137,11 +139,12 @@ MedAudit-Diff-Watcher/
 - `tests/test_csv_diff.py`
   - 行顺序变化处理
   - 疑似修改行检测
+  - 字段排除规则与单边缺失文件处理
 
 - `tests/test_planner.py`
   - 最新两目录选择
   - 固定文件名计划构建
-  - 通配符计划构建
+  - 通配符计划构建（并集文件名）
 
 ### 配置与兼容
 
@@ -169,4 +172,3 @@ MedAudit-Diff-Watcher/
 - 当前仓库中不存在 `medaudit_diff_watcher/bc_launcher.py`
 
 如果 IDE 标签页显示 `bc_launcher.py`，通常是历史文件/临时标签/未落盘文件，不应作为当前实现依据。
-

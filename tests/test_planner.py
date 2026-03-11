@@ -78,7 +78,9 @@ class PlannerTests(unittest.TestCase):
             (b / name).write_text("id\n1\n", encoding="utf-8")
         time.sleep(0.05)
         plans = self.planner.plan_latest_pairs()
-        self.assertEqual([p.left_csv.name for p in plans], ["CM.csv", "DM.csv"])
+        self.assertEqual([p.left_csv.name for p in plans], ["CM.csv", "DM.csv", "RS.csv"])
+        self.assertFalse(plans[-1].left_csv.exists())
+        self.assertTrue(plans[-1].right_csv.exists())
 
 
 if __name__ == "__main__":

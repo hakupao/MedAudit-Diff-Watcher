@@ -61,15 +61,18 @@ class JobPlanner:
         right_files = self._list_csv_files(right_folder)
         left_map = {p.name.lower(): p for p in left_files if fnmatch.fnmatch(p.name, pattern)}
         right_map = {p.name.lower(): p for p in right_files if fnmatch.fnmatch(p.name, pattern)}
-        common_keys = sorted(set(left_map.keys()) & set(right_map.keys()))
+        all_keys = sorted(set(left_map.keys()) | set(right_map.keys()))
         plans: list[PlannedComparison] = []
-        for key in common_keys:
+        for key in all_keys:
+            left_csv = left_map.get(key)
+            right_csv = right_map.get(key)
+            display_name = (left_csv or right_csv).name
             plans.append(
                 PlannedComparison(
                     left_folder=left_folder,
                     right_folder=right_folder,
-                    left_csv=left_map[key],
-                    right_csv=right_map[key],
+                    left_csv=left_csv or (left_folder / display_name),
+                    right_csv=right_csv or (right_folder / display_name),
                     sort_key_left=self._sort_key(left_folder),
                     sort_key_right=self._sort_key(right_folder),
                 )

@@ -18,6 +18,8 @@ csv:
   normalize_trim_whitespace: true
   normalize_case_headers: false
   null_equivalents: ["", "NULL", "null", "N/A"]
+  exclude_columns_regex:
+    - "^[A-Za-z]{2}SEQ$"
 
 diff:
   enable_fuzzy_match: true

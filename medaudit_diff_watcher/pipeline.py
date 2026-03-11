@@ -191,44 +191,68 @@ class PipelineRunner:
             self.repo.log_job(job_id, "INFO", f"Planned comparison: {plan.left_folder.name} vs {plan.right_folder.name}")
             if batch_slug and file_subdir:
                 self.repo.log_job(job_id, "INFO", f"Batch {batch_slug} report dir assigned: {plan.left_csv.name} -> {file_subdir}")
-            if not plan.left_csv.exists():
+            left_exists = plan.left_csv.exists()
+            right_exists = plan.right_csv.exists()
+            if not left_exists and not right_exists:
                 raise FileNotFoundError(
+                    self._build_both_missing_csv_message(
+                        left_path=plan.left_csv,
+                        right_path=plan.right_csv,
+                        left_folder=plan.left_folder,
+                        right_folder=plan.right_folder,
+                        configured_name=self.planner.config.csv.fixed_filename,
+                    )
+                )
+            if not left_exists:
+                self.repo.log_job(
+                    job_id,
+                    "WARNING",
                     self._build_missing_csv_message(
                         side="Left",
                         missing_path=plan.left_csv,
                         folder=plan.left_folder,
                         configured_name=self.planner.config.csv.fixed_filename,
-                    )
+                    ),
                 )
-            if not plan.right_csv.exists():
-                raise FileNotFoundError(
+            if not right_exists:
+                self.repo.log_job(
+                    job_id,
+                    "WARNING",
                     self._build_missing_csv_message(
                         side="Right",
                         missing_path=plan.right_csv,
                         folder=plan.right_folder,
                         configured_name=self.planner.config.csv.fixed_filename,
-                    )
+                    ),
                 )
 
             self.repo.update_job_status(job_id, "comparing")
             if launch_bc:
-                launch_result = self.compare_tool_launcher.launch(
-                    left_folder=plan.left_folder,
-                    right_folder=plan.right_folder,
-                    left_csv=plan.left_csv,
-                    right_csv=plan.right_csv,
-                )
-                if launch_result.launched:
+                compare_mode = self.compare_tool_launcher.config.compare_mode.lower().strip()
+                if compare_mode == "folder" or (left_exists and right_exists):
+                    launch_result = self.compare_tool_launcher.launch(
+                        left_folder=plan.left_folder,
+                        right_folder=plan.right_folder,
+                        left_csv=plan.left_csv,
+                        right_csv=plan.right_csv,
+                    )
+                    if launch_result.launched:
+                        self.repo.log_job(
+                            job_id,
+                            "INFO",
+                            f"{self.compare_tool_launcher.tool_display_name()} launched: {' '.join(launch_result.command)}",
+                        )
+                    elif launch_result.command:
+                        self.repo.log_job(
+                            job_id,
+                            "WARNING",
+                            f"{self.compare_tool_launcher.tool_display_name()} not launched: {launch_result.error or 'disabled'}",
+                        )
+                else:
                     self.repo.log_job(
                         job_id,
                         "INFO",
-                        f"{self.compare_tool_launcher.tool_display_name()} launched: {' '.join(launch_result.command)}",
-                    )
-                elif launch_result.command:
-                    self.repo.log_job(
-                        job_id,
-                        "WARNING",
-                        f"{self.compare_tool_launcher.tool_display_name()} not launched: {launch_result.error or 'disabled'}",
+                        f"{self.compare_tool_launcher.tool_display_name()} launch skipped because compare_mode=file requires both CSV files.",
                     )
             else:
                 self.repo.log_job(
@@ -471,4 +495,21 @@ class PipelineRunner:
             f"No matching CSV files for pattern '{pattern}'. "
             f"Left folder CSVs: {', '.join(left_files) if left_files else '(none)'}; "
             f"Right folder CSVs: {', '.join(right_files) if right_files else '(none)'}."
+        )
+
+    def _build_both_missing_csv_message(
+        self,
+        *,
+        left_path: Path,
+        right_path: Path,
+        left_folder: Path,
+        right_folder: Path,
+        configured_name: str,
+    ) -> str:
+        left_files = ", ".join(self.planner.describe_csv_files(left_folder)) or "(none)"
+        right_files = ", ".join(self.planner.describe_csv_files(right_folder)) or "(none)"
+        return (
+            f"Both CSV files are missing: left={left_path}, right={right_path}. "
+            f"Configured csv.fixed_filename='{configured_name}'. "
+            f"Left folder CSVs: {left_files}; Right folder CSVs: {right_files}."
         )

@@ -42,6 +42,7 @@ python -m medaudit_diff_watcher --config config.yaml doctor
 - SQLite 可写性
 - compare tool 可执行文件路径
 - `csv.fixed_filename`
+- `csv.exclude_columns_regex`
 - `yaml` / `watchdog` / `rapidfuzz` 安装情况
 - AI 连接性（当 `ai.enabled: true`）
 
@@ -112,7 +113,9 @@ python -m medaudit_diff_watcher --config config.yaml compare --left "C:\StudyA\V
 
 说明：
 
-- 若 `csv.fixed_filename` 为通配符（如 `*.csv`），会对左右目录共同匹配到的 CSV 执行批量比较
+- 若 `csv.fixed_filename` 为通配符（如 `*.csv`），会对左右目录匹配到的 CSV 并集执行批量比较
+- 若某个 CSV 只存在于一侧，仍会生成完整报告；缺失侧按空文件处理，结果表现为整文件新增或整文件删除
+- 字段排除规则来自 `csv.exclude_columns_regex`；命中的字段不会参与 schema / 行内容 / 模糊匹配比较
 - 若无匹配文件，会抛出 `No matching CSV files for pattern ...`
 
 ## `rebuild-report`
@@ -179,4 +182,3 @@ python -m medaudit_diff_watcher --config config.yaml rebuild-report --job-id 42
 - `--config` 建议始终放在子命令前，避免参数归属歧义
 - `doctor` 中 `watchdog` / `rapidfuzz` 显示未安装不一定是致命错误（代码视为 optional）
 - compare tool 启动失败不一定阻断 CSV 差异计算（取决于流程阶段和具体错误）
-

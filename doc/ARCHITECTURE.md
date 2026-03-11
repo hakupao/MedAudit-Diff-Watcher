@@ -37,10 +37,13 @@ WatcherService (watcher.py)
 3. `JobPlanner` 选择最新两个子目录（`latest_two`）
 4. `JobPlanner` 根据 `csv.fixed_filename` 生成计划：
    - 固定文件名 -> 单个计划
-   - 通配符（如 `*.csv`）-> 多个文件计划（交集文件名）
+   - 通配符（如 `*.csv`）-> 多个文件计划（匹配文件名并集）
+   - 若某个文件只存在于一侧 -> 仍生成计划，缺失侧按空文件处理
 5. `PipelineRunner` 创建批次（`compare_batches`）并逐个创建任务（`compare_jobs`）
 6. `CompareToolLauncher`（可选）拉起外部对比工具
 7. `CsvDiffEngine` 比较左右 CSV，生成 `CsvDiffResult`
+   - 支持 `csv.exclude_columns_regex` 字段排除规则
+   - 支持单边缺失文件的整文件新增/删除报告
 8. `DiffRepository` 持久化结果（快照、schema diff、summary、row/cell diffs、日志）
 9. `DetailedReportRenderer` 生成文件级报告（HTML/CSV）
 10. `AISummaryClient`（可选）生成文件级 AI 总结并写入 `ai_summary.md`
@@ -111,4 +114,3 @@ WatcherService (watcher.py)
 - 批次汇总生成失败不会抹掉已生成的文件级报告
 - AI 失败不影响已完成的 CSV 差异计算与报告落地
 - `rebuild-report` 基于数据库内容重建，不重新执行 CSV 比较或外部 compare tool
-

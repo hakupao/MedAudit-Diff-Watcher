@@ -23,6 +23,9 @@ csv:
   normalize_trim_whitespace: true
   normalize_case_headers: false
   null_equivalents: ["", "NULL", "null", "N/A"]
+  # 正则按“整字段名”匹配，默认忽略任意两个字母 + SEQ（如 DMSEQ / RSSEQ）
+  exclude_columns_regex:
+    - "^[A-Za-z]{2}SEQ$"
 
 diff:
   enable_fuzzy_match: true

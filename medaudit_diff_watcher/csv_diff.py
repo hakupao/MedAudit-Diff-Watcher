@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from collections import Counter
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -43,8 +44,28 @@ class CsvDiffEngine:
     def __init__(self, csv_config: CsvConfig, diff_config: DiffConfig) -> None:
         self.csv_config = csv_config
         self.diff_config = diff_config
+        self._exclude_column_patterns = [
+            re.compile(pattern, re.IGNORECASE) for pattern in self.csv_config.exclude_columns_regex if pattern.strip()
+        ]
 
     def compare_files(self, left_csv: Path, right_csv: Path) -> CsvDiffResult:
+        left_exists = left_csv.exists() and left_csv.is_file()
+        right_exists = right_csv.exists() and right_csv.is_file()
+        if left_exists and right_exists:
+            return self._compare_existing_files(left_csv, right_csv)
+        if not left_exists and not right_exists:
+            raise FileNotFoundError(f"Both CSV files are missing: {left_csv} ; {right_csv}")
+
+        existing_path = left_csv if left_exists else right_csv
+        missing_path = right_csv if left_exists else left_csv
+        existing_side = "left" if left_exists else "right"
+        return self._compare_existing_with_missing(
+            existing_path=existing_path,
+            missing_path=missing_path,
+            existing_side=existing_side,
+        )
+
+    def _compare_existing_files(self, left_csv: Path, right_csv: Path) -> CsvDiffResult:
         left = self._load_csv(left_csv)
         right = self._load_csv(right_csv)
 
@@ -89,6 +110,61 @@ class CsvDiffEngine:
             added_rows=added_rows,
             deleted_rows=deleted_rows,
             suspected_modified_rows=suspected_modified,
+            warnings=warnings,
+        )
+
+    def _compare_existing_with_missing(
+        self,
+        *,
+        existing_path: Path,
+        missing_path: Path,
+        existing_side: str,
+    ) -> CsvDiffResult:
+        loaded = self._load_csv(existing_path)
+        missing_snapshot = self._build_missing_snapshot(missing_path)
+        warnings = [
+            f"One-sided CSV detected: treating missing {'right' if existing_side == 'left' else 'left'} file as empty."
+        ]
+        if existing_side == "left":
+            schema_diff = self._compute_schema_diff(loaded.headers, [])
+            summary = CsvDiffSummary(
+                total_rows_left=len(loaded.rows),
+                total_rows_right=0,
+                exact_match_rows=0,
+                added_rows=0,
+                deleted_rows=len(loaded.rows),
+                suspected_modified_rows=0,
+                fuzzy_match_enabled=False,
+            )
+            return CsvDiffResult(
+                left_snapshot=loaded.snapshot,
+                right_snapshot=missing_snapshot,
+                schema_diff=schema_diff,
+                summary=summary,
+                added_rows=[],
+                deleted_rows=loaded.rows,
+                suspected_modified_rows=[],
+                warnings=warnings,
+            )
+
+        schema_diff = self._compute_schema_diff([], loaded.headers)
+        summary = CsvDiffSummary(
+            total_rows_left=0,
+            total_rows_right=len(loaded.rows),
+            exact_match_rows=0,
+            added_rows=len(loaded.rows),
+            deleted_rows=0,
+            suspected_modified_rows=0,
+            fuzzy_match_enabled=False,
+        )
+        return CsvDiffResult(
+            left_snapshot=missing_snapshot,
+            right_snapshot=loaded.snapshot,
+            schema_diff=schema_diff,
+            summary=summary,
+            added_rows=loaded.rows,
+            deleted_rows=[],
+            suspected_modified_rows=[],
             warnings=warnings,
         )
 
@@ -150,15 +226,21 @@ class CsvDiffEngine:
         except StopIteration:
             return [], []
 
-        headers = [self._normalize_header(h) for h in raw_headers]
-        headers = _make_unique_headers(headers)
+        normalized_headers = [self._normalize_header(h) for h in raw_headers]
+        keep_indices = [idx for idx, header in enumerate(normalized_headers) if not self._is_excluded_header(header)]
+        headers = _make_unique_headers([normalized_headers[idx] for idx in keep_indices])
         rows: list[dict[str, str]] = []
         for raw_row in reader:
-            if len(raw_row) < len(headers):
-                raw_row = raw_row + [""] * (len(headers) - len(raw_row))
-            elif len(raw_row) > len(headers):
-                raw_row = raw_row[: len(headers) - 1] + [delimiter.join(raw_row[len(headers) - 1 :])]
-            normalized = {headers[i]: self._normalize_value(raw_row[i]) for i in range(len(headers))}
+            if not normalized_headers:
+                rows.append({})
+                continue
+            if len(raw_row) < len(normalized_headers):
+                raw_row = raw_row + [""] * (len(normalized_headers) - len(raw_row))
+            elif len(raw_row) > len(normalized_headers):
+                raw_row = raw_row[: len(normalized_headers) - 1] + [delimiter.join(raw_row[len(normalized_headers) - 1 :])]
+            normalized = {
+                headers[out_idx]: self._normalize_value(raw_row[in_idx]) for out_idx, in_idx in enumerate(keep_indices)
+            }
             rows.append(normalized)
         return headers, rows
 
@@ -175,6 +257,20 @@ class CsvDiffEngine:
         if out in self.csv_config.null_equivalents:
             return ""
         return out
+
+    def _is_excluded_header(self, header: str) -> bool:
+        return any(pattern.fullmatch(header) for pattern in self._exclude_column_patterns)
+
+    def _build_missing_snapshot(self, path: Path) -> FileSnapshot:
+        resolved = path.resolve()
+        return FileSnapshot(
+            path=str(resolved),
+            file_size=0,
+            mtime=0.0,
+            sha256=f"missing::{resolved}",
+            encoding="",
+            delimiter="",
+        )
 
     def _compute_schema_diff(self, left_headers: list[str], right_headers: list[str]) -> SchemaDiff:
         left_set = set(left_headers)

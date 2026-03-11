@@ -84,7 +84,8 @@ logging:
 行为说明：
 
 - 固定文件名：左右目录各取该文件进行比较
-- 通配符：程序会取左右目录中匹配文件名的交集，逐文件生成批次内多个任务
+- 通配符：程序会取左右目录中匹配文件名的并集，逐文件生成批次内多个任务
+- 若某个匹配到的文件只存在于一侧，仍会生成该文件的详细报告；缺失侧按空文件处理
 
 ### `csv.encoding: str`
 
@@ -112,6 +113,28 @@ logging:
 - `"NULL"`
 - `"null"`
 - `"N/A"`
+
+### `csv.exclude_columns_regex: list[str]`
+
+用于配置“不参与比较”的字段名正则列表。
+
+- 每条规则按“整字段名”匹配
+- 匹配大小写不敏感
+- 命中的字段不会参与表头差异、行级差异和疑似修改匹配
+- 默认值为 `["^[A-Za-z]{2}SEQ$"]`
+
+默认规则含义：
+
+- 忽略任意两个字母加 `SEQ` 的字段
+- 例如：`DMSEQ`、`RSSEQ`、`AESEQ`
+
+如果希望关闭默认规则，可显式写成：
+
+```yaml
+csv:
+  fixed_filename: "*.csv"
+  exclude_columns_regex: []
+```
 
 ## `diff`（差异算法行为）
 
@@ -243,6 +266,8 @@ pairing:
 
 csv:
   fixed_filename: "DM.csv"
+  exclude_columns_regex:
+    - "^[A-Za-z]{2}SEQ$"
 
 diff:
   enable_fuzzy_match: true
@@ -282,6 +307,8 @@ pairing:
 
 csv:
   fixed_filename: "*.csv"
+  exclude_columns_regex:
+    - "^[A-Za-z]{2}SEQ$"
 
 diff:
   enable_fuzzy_match: true
@@ -332,4 +359,3 @@ logging:
 ```powershell
 python -m medaudit_diff_watcher --config config.yaml doctor
 ```
-

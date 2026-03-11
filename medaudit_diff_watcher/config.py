@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from medaudit_diff_watcher.utils import safe_filename
+
+
+DEFAULT_EXCLUDE_COLUMNS_REGEX = [r"^[A-Za-z]{2}SEQ$"]
 
 
 @dataclass(slots=True)
@@ -37,6 +41,7 @@ class CsvConfig:
     normalize_trim_whitespace: bool = True
     normalize_case_headers: bool = False
     null_equivalents: list[str] = field(default_factory=lambda: ["", "NULL", "null", "N/A"])
+    exclude_columns_regex: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDE_COLUMNS_REGEX))
 
 
 @dataclass(slots=True)
@@ -125,6 +130,20 @@ def _bool(v: Any) -> bool:
     return bool(v)
 
 
+def _validate_regex_list(raw: Any, path: str) -> list[str]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(f"{path} must be a list")
+    patterns = [str(x).strip() for x in raw if str(x).strip()]
+    for pattern in patterns:
+        try:
+            re.compile(pattern, re.IGNORECASE)
+        except re.error as exc:
+            raise ValueError(f"Invalid regex in {path}: {pattern!r} ({exc})") from exc
+    return patterns
+
+
 def _build_config(raw: dict[str, Any]) -> AppConfig:
     watch_raw = _require_mapping(_get(raw, "watch", {}, required=True), "watch")
     pairing_raw = _require_mapping(_get(raw, "pairing", {}), "pairing")
@@ -143,6 +162,10 @@ def _build_config(raw: dict[str, Any]) -> AppConfig:
     null_equivalents = _get(csv_raw, "null_equivalents", ["", "NULL", "null", "N/A"])
     if not isinstance(null_equivalents, list):
         raise ValueError("csv.null_equivalents must be a list")
+    exclude_columns_regex = _validate_regex_list(
+        _get(csv_raw, "exclude_columns_regex", DEFAULT_EXCLUDE_COLUMNS_REGEX),
+        "csv.exclude_columns_regex",
+    )
 
     root_dirs_raw = _get(watch_raw, "root_dirs", [])
     if root_dirs_raw is None:
@@ -172,6 +195,7 @@ def _build_config(raw: dict[str, Any]) -> AppConfig:
             normalize_trim_whitespace=_bool(_get(csv_raw, "normalize_trim_whitespace", True)),
             normalize_case_headers=_bool(_get(csv_raw, "normalize_case_headers", False)),
             null_equivalents=[str(x) for x in null_equivalents],
+            exclude_columns_regex=exclude_columns_regex,
         ),
         diff=DiffConfig(
             enable_fuzzy_match=_bool(_get(diff_raw, "enable_fuzzy_match", True)),

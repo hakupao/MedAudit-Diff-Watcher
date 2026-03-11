@@ -125,12 +125,13 @@ class PipelineIntegrationTests(unittest.TestCase):
         (self.right / "DM.csv").write_text("id,val\n1,b\n", encoding="utf-8", newline="")
         (self.left / "CM.csv").write_text("id,val\n1,x\n", encoding="utf-8", newline="")
         (self.right / "CM.csv").write_text("id,val\n1,y\n", encoding="utf-8", newline="")
+        (self.right / "RS.csv").write_text("id,val\n1,z\n", encoding="utf-8", newline="")
 
         self.config.csv.fixed_filename = "*.csv"
         job_ids = self.pipeline.process_manual_pairs(self.left, self.right)
 
-        # Existing result.csv + CM.csv + DM.csv => 3 comparisons
-        self.assertEqual(len(job_ids), 3)
+        # Existing result.csv + CM.csv + DM.csv + right-only RS.csv => 4 comparisons
+        self.assertEqual(len(job_ids), 4)
         self.assertTrue(all(isinstance(i, int) and i > 0 for i in job_ids))
         self.assertIsNotNone(self.pipeline.last_batch_result)
         assert self.pipeline.last_batch_result is not None
@@ -140,7 +141,32 @@ class PipelineIntegrationTests(unittest.TestCase):
         self.assertTrue((batch_dir / "summary.csv").exists())
         self.assertTrue((batch_dir / "CM" / "detailed_report.html").exists())
         self.assertTrue((batch_dir / "DM" / "detailed_report.html").exists())
+        self.assertTrue((batch_dir / "RS" / "detailed_report.html").exists())
         self.assertTrue((batch_dir / "result" / "detailed_report.html").exists())
+
+    def test_manual_compare_with_missing_fixed_filename_still_generates_reports(self) -> None:
+        missing_right = self.root / "batch_003"
+        missing_right.mkdir()
+        self.config.csv.fixed_filename = "only_left.csv"
+        (self.left / "only_left.csv").write_text("id,val\n1,a\n2,b\n", encoding="utf-8", newline="")
+
+        job_id = self.pipeline.process_manual_pair(self.left, missing_right)
+
+        job = self.repo.get_job(job_id)
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job["status"], "done")
+        bundle = self.repo.fetch_job_bundle(job_id)
+        summary = bundle["summary"]
+        self.assertIsNotNone(summary)
+        assert summary is not None
+        self.assertEqual(summary["added_rows"], 0)
+        self.assertEqual(summary["deleted_rows"], 2)
+
+        assert self.pipeline.last_batch_result is not None
+        batch_dir = Path(self.config.report.output_dir) / self.pipeline.last_batch_result.batch_slug / "only_left"
+        self.assertTrue((batch_dir / "detailed_report.html").exists())
+        self.assertTrue((batch_dir / "row_diffs.csv").exists())
 
     def test_allocate_file_subdir_adds_suffix_on_collision(self) -> None:
         used: set[str] = set()

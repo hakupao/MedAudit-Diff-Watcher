@@ -58,6 +58,14 @@ def run_doctor(config: AppConfig) -> list[DoctorCheck]:
             detail=config.csv.fixed_filename,
         )
     )
+    exclude_patterns = [pattern for pattern in config.csv.exclude_columns_regex if pattern.strip()]
+    checks.append(
+        DoctorCheck(
+            name="csv.exclude_columns_regex",
+            ok=True,
+            detail=", ".join(exclude_patterns) if exclude_patterns else "(none)",
+        )
+    )
 
     for dep_name, module_name in [
         ("yaml", "yaml"),

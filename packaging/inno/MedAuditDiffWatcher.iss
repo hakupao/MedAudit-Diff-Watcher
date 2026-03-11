@@ -2,7 +2,7 @@
 ; Build the PyInstaller onedir output first, then adjust SourceDir if needed.
 
 #define AppName "MedAudit Diff Watcher"
-#define AppVersion "0.1.0"
+#define AppVersion "0.1.1"
 #define AppPublisher "Local"
 #define AppExeName "medaudit-diff-watcher-gui.exe"
 #define DistDir "..\\..\\dist\\medaudit-diff-watcher-gui"
@@ -53,4 +53,3 @@ begin
     );
   end;
 end;
-

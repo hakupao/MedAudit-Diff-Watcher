@@ -177,12 +177,23 @@ class ConfigFormWidget(QWidget):
         self.csv_null_equiv_edit.setPlaceholderText("One null-equivalent value per line")
         self.csv_null_equiv_edit.setFixedHeight(86)
 
+        self.csv_exclude_columns_regex_edit = QPlainTextEdit()
+        self.csv_exclude_columns_regex_edit.setPlaceholderText(
+            "One regex per line, full-match on column name\nDefault: ^[A-Za-z]{2}SEQ$"
+        )
+        self.csv_exclude_columns_regex_edit.setFixedHeight(86)
+
         form.addRow("fixed_filename", self.csv_fixed_filename_edit)
         form.addRow("encoding", self.csv_encoding_combo)
         form.addRow("delimiter", self.csv_delimiter_combo)
         form.addRow("", self.csv_trim_ws_check)
         form.addRow("", self.csv_case_headers_check)
         form.addRow("null_equivalents", self.csv_null_equiv_edit)
+        form.addRow("exclude_columns_regex", self.csv_exclude_columns_regex_edit)
+
+        exclude_note = QLabel("Patterns are case-insensitive and must match the whole column name.")
+        exclude_note.setWordWrap(True)
+        form.addRow("", exclude_note)
 
         grid.addWidget(box, row, col)
 
@@ -314,6 +325,7 @@ class ConfigFormWidget(QWidget):
         self.csv_trim_ws_check.setChecked(bool(cfg.csv.normalize_trim_whitespace))
         self.csv_case_headers_check.setChecked(bool(cfg.csv.normalize_case_headers))
         self.csv_null_equiv_edit.setPlainText("\n".join(cfg.csv.null_equivalents))
+        self.csv_exclude_columns_regex_edit.setPlainText("\n".join(cfg.csv.exclude_columns_regex))
 
         self.diff_enable_fuzzy_check.setChecked(bool(cfg.diff.enable_fuzzy_match))
         self.diff_threshold_spin.setValue(int(cfg.diff.fuzzy_threshold))
@@ -347,6 +359,9 @@ class ConfigFormWidget(QWidget):
         null_equivs = [line.rstrip("\r") for line in self.csv_null_equiv_edit.toPlainText().splitlines()]
         if not null_equivs:
             null_equivs = ["", "NULL", "null", "N/A"]
+        exclude_columns_regex = [
+            line.strip() for line in self.csv_exclude_columns_regex_edit.toPlainText().splitlines() if line.strip()
+        ]
 
         return AppConfig(
             watch=WatchConfig(
@@ -364,6 +379,7 @@ class ConfigFormWidget(QWidget):
                 normalize_trim_whitespace=self.csv_trim_ws_check.isChecked(),
                 normalize_case_headers=self.csv_case_headers_check.isChecked(),
                 null_equivalents=[str(x) for x in null_equivs],
+                exclude_columns_regex=exclude_columns_regex,
             ),
             diff=DiffConfig(
                 enable_fuzzy_match=self.diff_enable_fuzzy_check.isChecked(),
